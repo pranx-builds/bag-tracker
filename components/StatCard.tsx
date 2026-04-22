@@ -9,7 +9,7 @@ interface StatCardProps {
   small?: boolean;
 }
 
-export default function StatCard({ label, value, variant = 'default', small = false }: StatCardProps) {
+function StatCard({ label, value, variant = 'default', small = false }: StatCardProps) {
   const { colors } = useTheme();
 
   const bgMap = {
@@ -38,6 +38,8 @@ export default function StatCard({ label, value, variant = 'default', small = fa
     </View>
   );
 }
+
+export default React.memo(StatCard);
 
 const styles = StyleSheet.create({
   card: {

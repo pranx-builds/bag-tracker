@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Alert,
-  Modal, TextInput, KeyboardAvoidingView, Platform,
+  TextInput, ActivityIndicator,
 } from 'react-native';
 import { Package, PackageOpen, Clock, Pencil, Trash2, RotateCcw, AlertTriangle } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import type { CollectionEntry } from '@/types';
 import { formatDateTime, logEmptyBagReturn } from '@/lib/database';
 import { getSetting } from '@/lib/settings';
+import { logger } from '@/lib/logger';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 interface CollectionItemProps {
   entry: CollectionEntry;
@@ -33,7 +35,7 @@ function formatCountdown(s: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export default function CollectionItem({ entry, index, onEdit, onDelete, onReturnLogged }: CollectionItemProps) {
+function CollectionItem({ entry, index, onEdit, onDelete, onReturnLogged }: CollectionItemProps) {
   const { colors } = useTheme();
   const hasReturn = entry.return_logged_at !== null;
   const { secondsLeft, isPending, isOverdue } = useCountdown(entry.timestamp);
@@ -41,6 +43,7 @@ export default function CollectionItem({ entry, index, onEdit, onDelete, onRetur
 
   const [modalVisible, setModalVisible] = useState(false);
   const [returnValue, setReturnValue] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const needsReturn = !hasReturn;
   const showReminder = needsReturn && isPending;
@@ -60,12 +63,20 @@ export default function CollectionItem({ entry, index, onEdit, onDelete, onRetur
     setModalVisible(true);
   }
 
-  function saveReturn() {
+  async function saveReturn() {
     const val = parseInt(returnValue, 10);
     if (isNaN(val) || val < 0) { Alert.alert('Invalid', 'Please enter a valid number.'); return; }
-    logEmptyBagReturn(entry.id, val);
-    setModalVisible(false);
-    onReturnLogged();
+    setSaving(true);
+    try {
+      await logEmptyBagReturn(entry.id, val);
+      setModalVisible(false);
+      onReturnLogged();
+    } catch (err) {
+      logger.error('logEmptyBagReturn:', err);
+      Alert.alert('Error', 'Failed to log return. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -95,13 +106,13 @@ export default function CollectionItem({ entry, index, onEdit, onDelete, onRetur
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Package size={14} color={colors.accent} />
-              <Text style={[styles.statLabel, { color: colors.subtext }]}>Taken</Text>
+              <Text style={[styles.statLabel, { color: colors.subtext }]}>Collected</Text>
               <Text style={[styles.statValue, { color: colors.text }]}>{entry.full_bags_taken}</Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
               <PackageOpen size={14} color={hasReturn ? colors.success : colors.subtext} />
-              <Text style={[styles.statLabel, { color: colors.subtext }]}>Returned</Text>
+              <Text style={[styles.statLabel, { color: colors.subtext }]}>Empty Bags</Text>
               <Text style={[styles.statValue, { color: hasReturn ? colors.success : colors.subtext }]}>
                 {hasReturn ? entry.empty_bags_returned : '—'}
               </Text>
@@ -131,47 +142,47 @@ export default function CollectionItem({ entry, index, onEdit, onDelete, onRetur
         </View>
       </View>
 
-      {/* Return Bottom Sheet */}
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.overlay}>
-          <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setModalVisible(false)} />
-          <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.handle, { backgroundColor: colors.border }]} />
-            <View style={styles.sheetTitleRow}>
-              <RotateCcw size={20} color={colors.success} />
-              <Text style={[styles.sheetTitle, { color: colors.text }]}>Log Empty Bag Return</Text>
-            </View>
-            <Text style={[styles.sheetSubtitle, { color: colors.subtext }]}>
-              Collection #{index + 1} · {formatDateTime(entry.timestamp)} · {entry.full_bags_taken} taken
-            </Text>
-            <Text style={[styles.inputLabel, { color: colors.subtext }]}>Empty Bags Returned</Text>
-            <TextInput
-              style={[styles.bigInput, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
-              keyboardType="numeric"
-              value={returnValue}
-              onChangeText={setReturnValue}
-              autoFocus
-              maxLength={4}
-              selectTextOnFocus
-            />
-            <Text style={[styles.hint, { color: colors.subtext }]}>
-              Pre-filled with bags taken ({entry.full_bags_taken}) — adjust if needed
-            </Text>
-            <View style={styles.btnRow}>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)}>
-                <Text style={[styles.btnText, { color: colors.text }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.success }]} onPress={saveReturn}>
-                <RotateCcw size={15} color="#FFF" />
-                <Text style={[styles.btnText, { color: '#FFF' }]}>Confirm Return</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <BottomSheet visible={modalVisible} onClose={() => setModalVisible(false)}>
+        <View style={styles.sheetTitleRow}>
+          <RotateCcw size={20} color={colors.success} />
+          <Text style={[styles.sheetTitle, { color: colors.text }]}>Log Empty Bag Return</Text>
+        </View>
+        <Text style={[styles.sheetSubtitle, { color: colors.subtext }]}>
+          Collection #{index + 1} · {formatDateTime(entry.timestamp)} · {entry.full_bags_taken} taken
+        </Text>
+        <Text style={[styles.inputLabel, { color: colors.subtext }]}>Empty Bags Returned</Text>
+        <TextInput
+          style={[styles.bigInput, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
+          keyboardType="numeric"
+          value={returnValue}
+          onChangeText={setReturnValue}
+          autoFocus
+          maxLength={4}
+          selectTextOnFocus
+        />
+        <Text style={[styles.hint, { color: colors.subtext }]}>
+          Pre-filled with bags taken ({entry.full_bags_taken}) — adjust if needed
+        </Text>
+        <View style={styles.btnRow}>
+          <TouchableOpacity style={[styles.btn, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)}>
+            <Text style={[styles.btnText, { color: colors.text }]}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: colors.success }, saving && { opacity: 0.5 }]}
+            onPress={saveReturn}
+            disabled={saving}
+          >
+            {saving
+              ? <ActivityIndicator size="small" color="#FFF" />
+              : <><RotateCcw size={15} color="#FFF" /><Text style={[styles.btnText, { color: '#FFF' }]}>Confirm Return</Text></>}
+          </TouchableOpacity>
+        </View>
+      </BottomSheet>
     </>
   );
 }
+
+export default React.memo(CollectionItem);
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: 12, borderWidth: 1.5, padding: 12, gap: 10, marginBottom: 8 },
@@ -193,11 +204,6 @@ const styles = StyleSheet.create({
   returnBtnText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
   iconActions: { flexDirection: 'row', gap: 5 },
   actionBtn: { width: 28, height: 28, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  // Sheet
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, borderBottomWidth: 0, padding: 24, paddingBottom: 40, gap: 12 },
-  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 8 },
   sheetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sheetTitle: { fontSize: 17, fontWeight: '700' },
   sheetSubtitle: { fontSize: 13, marginTop: -4 },

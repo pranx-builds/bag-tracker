@@ -1,37 +1,10 @@
-import * as SQLite from 'expo-sqlite';
-import type { DailyRecord, CollectionEntry, DaySummary, WeeklyReport, MonthlyReport } from '@/types';
-import { initSettingsTable, getSetting } from '@/lib/settings';
+import { supabase } from '@/lib/supabase';
+import { getSetting } from '@/lib/settings';
+import { getTodayDate, getMondayOf } from '@/utils/date';
+import type { DailyRecord, CollectionEntry, DaySummary, WeeklyReport, MonthlyReport, Shop, ShopTodaySummary } from '@/types';
+import { MAX_PIN_GENERATION_ATTEMPTS } from '@/constants';
 
-const db = SQLite.openDatabaseSync('bag_tracker.db');
-
-export function initDatabase(): void {
-  initSettingsTable();
-  db.execSync(`
-    PRAGMA journal_mode = WAL;
-
-    CREATE TABLE IF NOT EXISTS daily_records (
-      id                 TEXT PRIMARY KEY,
-      date               TEXT NOT NULL UNIQUE,
-      full_bags_received INTEGER NOT NULL DEFAULT 0,
-      created_at         TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS collection_entries (
-      id                  TEXT PRIMARY KEY,
-      daily_record_id     TEXT NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
-      full_bags_taken     INTEGER NOT NULL DEFAULT 0,
-      empty_bags_returned INTEGER NOT NULL DEFAULT 0,
-      notes               TEXT NOT NULL DEFAULT '',
-      timestamp           TEXT NOT NULL DEFAULT (datetime('now')),
-      return_logged_at    TEXT DEFAULT NULL
-    );
-  `);
-
-  // migrate: add return_logged_at if upgrading from old schema
-  try {
-    db.execSync(`ALTER TABLE collection_entries ADD COLUMN return_logged_at TEXT DEFAULT NULL;`);
-  } catch (_) { /* column already exists */ }
-}
+export { getTodayDate, formatDate, formatDateTime } from '@/utils/date';
 
 function uuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -40,158 +13,187 @@ function uuid(): string {
   });
 }
 
-export function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-export function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-export function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-}
-
 // ─── Daily Records ────────────────────────────────────────────────────────────
 
-export function getDailyRecord(date: string): DailyRecord | null {
-  return db.getFirstSync<DailyRecord>(`SELECT * FROM daily_records WHERE date = ?`, [date]) ?? null;
+export async function getDailyRecord(shopId: string, date: string): Promise<DailyRecord | null> {
+  const { data, error } = await supabase
+    .from('daily_records')
+    .select('*')
+    .eq('shop_id', shopId)
+    .eq('date', date)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
-export function createDailyRecord(date: string, fullBagsReceived: number): DailyRecord {
-  const id = uuid();
-  const now = new Date().toISOString();
-  db.runSync(
-    `INSERT OR REPLACE INTO daily_records (id, date, full_bags_received, created_at) VALUES (?, ?, ?, ?)`,
-    [id, date, fullBagsReceived, now]
-  );
-  return getDailyRecord(date)!;
+export async function createDailyRecord(shopId: string, date: string, fullBagsReceived: number): Promise<DailyRecord> {
+  const { data, error } = await supabase
+    .from('daily_records')
+    .upsert({ id: uuid(), shop_id: shopId, date, full_bags_received: fullBagsReceived })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
-export function updateDailyRecord(id: string, fullBagsReceived: number): void {
-  db.runSync(`UPDATE daily_records SET full_bags_received = ? WHERE id = ?`, [fullBagsReceived, id]);
+export async function updateDailyRecord(id: string, fullBagsReceived: number): Promise<void> {
+  const { error } = await supabase
+    .from('daily_records')
+    .update({ full_bags_received: fullBagsReceived })
+    .eq('id', id);
+  if (error) throw error;
 }
 
-export function deleteDailyRecord(id: string): void {
-  db.runSync(`DELETE FROM daily_records WHERE id = ?`, [id]);
+export async function deleteDailyRecord(id: string): Promise<void> {
+  const { error } = await supabase.from('daily_records').delete().eq('id', id);
+  if (error) throw error;
 }
 
-export function getAllDailyRecords(): DailyRecord[] {
-  return db.getAllSync<DailyRecord>(`SELECT * FROM daily_records ORDER BY date DESC`);
+export async function getAllDailyRecords(shopId: string): Promise<DailyRecord[]> {
+  const { data, error } = await supabase
+    .from('daily_records')
+    .select('*')
+    .eq('shop_id', shopId)
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
 }
 
 // ─── Collection Entries ───────────────────────────────────────────────────────
 
-export function getCollectionEntries(dailyRecordId: string): CollectionEntry[] {
-  return db.getAllSync<CollectionEntry>(
-    `SELECT * FROM collection_entries WHERE daily_record_id = ? ORDER BY timestamp ASC`,
-    [dailyRecordId]
-  );
+export async function getCollectionEntries(dailyRecordId: string): Promise<CollectionEntry[]> {
+  const { data, error } = await supabase
+    .from('collection_entries')
+    .select('*')
+    .eq('daily_record_id', dailyRecordId)
+    .order('timestamp', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
 }
 
-export function addCollectionEntry(
+export async function addCollectionEntry(
+  shopId: string,
   dailyRecordId: string,
   fullBagsTaken: number,
   notes: string = '',
   customTimestamp?: string
-): CollectionEntry {
-  const id = uuid();
+): Promise<CollectionEntry> {
   const now = customTimestamp ?? new Date().toISOString();
-  db.runSync(
-    `INSERT INTO collection_entries (id, daily_record_id, full_bags_taken, empty_bags_returned, notes, timestamp, return_logged_at)
-     VALUES (?, ?, ?, 0, ?, ?, NULL)`,
-    [id, dailyRecordId, fullBagsTaken, notes.trim(), now]
-  );
-  return db.getFirstSync<CollectionEntry>(`SELECT * FROM collection_entries WHERE id = ?`, [id])!;
+  const { data, error } = await supabase
+    .from('collection_entries')
+    .insert({
+      id: uuid(),
+      shop_id: shopId,
+      daily_record_id: dailyRecordId,
+      full_bags_taken: fullBagsTaken,
+      empty_bags_returned: 0,
+      notes: notes.trim(),
+      timestamp: now,
+      return_logged_at: null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
-export function logEmptyBagReturn(id: string, emptyBagsReturned: number): void {
-  const now = new Date().toISOString();
-  db.runSync(
-    `UPDATE collection_entries SET empty_bags_returned = ?, return_logged_at = ? WHERE id = ?`,
-    [emptyBagsReturned, now, id]
-  );
+export async function logEmptyBagReturn(id: string, emptyBagsReturned: number): Promise<void> {
+  const { error } = await supabase
+    .from('collection_entries')
+    .update({ empty_bags_returned: emptyBagsReturned, return_logged_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
 }
 
-export function updateCollectionEntry(
+export async function updateCollectionEntry(
   id: string,
   fullBagsTaken: number,
   emptyBagsReturned: number,
   notes: string = ''
-): void {
-  db.runSync(
-    `UPDATE collection_entries SET full_bags_taken = ?, empty_bags_returned = ?, notes = ? WHERE id = ?`,
-    [fullBagsTaken, emptyBagsReturned, notes.trim(), id]
-  );
+): Promise<void> {
+  const { error } = await supabase
+    .from('collection_entries')
+    .update({ full_bags_taken: fullBagsTaken, empty_bags_returned: emptyBagsReturned, notes: notes.trim() })
+    .eq('id', id);
+  if (error) throw error;
 }
 
-export function deleteCollectionEntry(id: string): void {
-  db.runSync(`DELETE FROM collection_entries WHERE id = ?`, [id]);
+export async function deleteCollectionEntry(id: string): Promise<void> {
+  const { error } = await supabase.from('collection_entries').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Reminder helpers ─────────────────────────────────────────────────────────
 
-// Returns entries with no return logged yet, collected within the return window
-export function getPendingReturns(dailyRecordId: string): CollectionEntry[] {
+export async function getPendingReturns(dailyRecordId: string): Promise<CollectionEntry[]> {
   const windowMs = getSetting('returnWindowMinutes') * 60 * 1000;
   const cutoff = new Date(Date.now() - windowMs).toISOString();
-  return db.getAllSync<CollectionEntry>(
-    `SELECT * FROM collection_entries
-     WHERE daily_record_id = ?
-       AND return_logged_at IS NULL
-       AND timestamp >= ?
-     ORDER BY timestamp ASC`,
-    [dailyRecordId, cutoff]
-  );
+  const { data, error } = await supabase
+    .from('collection_entries')
+    .select('*')
+    .eq('daily_record_id', dailyRecordId)
+    .is('return_logged_at', null)
+    .gte('timestamp', cutoff)
+    .order('timestamp', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
 }
 
-// Returns entries with no return logged and past the return window (overdue)
-export function getOverdueReturns(dailyRecordId: string): CollectionEntry[] {
+export async function getOverdueReturns(dailyRecordId: string): Promise<CollectionEntry[]> {
   const windowMs = getSetting('returnWindowMinutes') * 60 * 1000;
   const cutoff = new Date(Date.now() - windowMs).toISOString();
-  return db.getAllSync<CollectionEntry>(
-    `SELECT * FROM collection_entries
-     WHERE daily_record_id = ?
-       AND return_logged_at IS NULL
-       AND timestamp < ?
-     ORDER BY timestamp ASC`,
-    [dailyRecordId, cutoff]
-  );
+  const { data, error } = await supabase
+    .from('collection_entries')
+    .select('*')
+    .eq('daily_record_id', dailyRecordId)
+    .is('return_logged_at', null)
+    .lt('timestamp', cutoff)
+    .order('timestamp', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
 }
 
 // ─── Summaries & Reports ──────────────────────────────────────────────────────
 
-export function getDaySummary(date: string): DaySummary | null {
-  const record = getDailyRecord(date);
+export async function getDaySummary(shopId: string, date: string): Promise<DaySummary | null> {
+  const record = await getDailyRecord(shopId, date);
   if (!record) return null;
-  const entries = getCollectionEntries(record.id);
+  const entries = await getCollectionEntries(record.id);
   const total_dispatched = entries.reduce((s, e) => s + e.full_bags_taken, 0);
   const total_returned = entries.reduce((s, e) => s + e.empty_bags_returned, 0);
-  const difference = record.full_bags_received - total_dispatched;
-  return { record, entries, total_dispatched, total_returned, difference, has_mismatch: difference !== 0 };
+  const remaining = record.full_bags_received - total_dispatched;
+  const missing = total_dispatched - total_returned;
+  return { record, entries, total_dispatched, total_returned, remaining, missing, has_missing: missing > 0 };
 }
 
-export function getDailyReports(): DaySummary[] {
-  return getAllDailyRecords().map((record) => {
-    const entries = getCollectionEntries(record.id);
+export async function getDailyReports(shopId: string): Promise<DaySummary[]> {
+  const { data, error } = await supabase
+    .from('daily_records')
+    .select('*, collection_entries(*)')
+    .eq('shop_id', shopId)
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const entries: CollectionEntry[] = (row.collection_entries ?? []).sort(
+      (a: CollectionEntry, b: CollectionEntry) => a.timestamp.localeCompare(b.timestamp)
+    );
     const total_dispatched = entries.reduce((s, e) => s + e.full_bags_taken, 0);
     const total_returned = entries.reduce((s, e) => s + e.empty_bags_returned, 0);
-    const difference = record.full_bags_received - total_dispatched;
-    return { record, entries, total_dispatched, total_returned, difference, has_mismatch: difference !== 0 };
+    const remaining = row.full_bags_received - total_dispatched;
+    const missing = total_dispatched - total_returned;
+    const record: DailyRecord = { id: row.id, shop_id: row.shop_id, date: row.date, full_bags_received: row.full_bags_received, created_at: row.created_at };
+    return { record, entries, total_dispatched, total_returned, remaining, missing, has_missing: missing > 0 };
   });
 }
 
-export function getWeeklyReports(): WeeklyReport[] {
+export async function getWeeklyReports(shopId: string): Promise<WeeklyReport[]> {
+  const dailyReports = await getDailyReports(shopId);
   const weeks: Record<string, WeeklyReport> = {};
-  for (const record of getAllDailyRecords()) {
-    const entries = getCollectionEntries(record.id);
+  for (const { record, entries } of dailyReports) {
     const total_dispatched = entries.reduce((s, e) => s + e.full_bags_taken, 0);
     const total_returned = entries.reduce((s, e) => s + e.empty_bags_returned, 0);
     const d = new Date(record.date + 'T00:00:00');
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const monday = getMondayOf(d);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     const key = monday.toISOString().split('T')[0];
@@ -211,10 +213,10 @@ export function getWeeklyReports(): WeeklyReport[] {
   return Object.values(weeks).sort((a, b) => b.start_date.localeCompare(a.start_date));
 }
 
-export function getMonthlyReports(): MonthlyReport[] {
+export async function getMonthlyReports(shopId: string): Promise<MonthlyReport[]> {
+  const dailyReports = await getDailyReports(shopId);
   const months: Record<string, MonthlyReport> = {};
-  for (const record of getAllDailyRecords()) {
-    const entries = getCollectionEntries(record.id);
+  for (const { record, entries } of dailyReports) {
     const total_dispatched = entries.reduce((s, e) => s + e.full_bags_taken, 0);
     const total_returned = entries.reduce((s, e) => s + e.empty_bags_returned, 0);
     const d = new Date(record.date + 'T00:00:00');
@@ -232,13 +234,90 @@ export function getMonthlyReports(): MonthlyReport[] {
   return Object.values(months).sort((a, b) => a.year !== b.year ? b.year - a.year : b.month - a.month);
 }
 
-export function generateCsvReport(): string {
+export async function generateCsvReport(shopId: string): Promise<string> {
+  const reports = await getDailyReports(shopId);
   const lines = ['Date,Full Bags Received,Full Bags Dispatched,Empty Bags Returned,Difference'];
-  for (const record of getAllDailyRecords()) {
-    const entries = getCollectionEntries(record.id);
-    const total_dispatched = entries.reduce((s, e) => s + e.full_bags_taken, 0);
-    const total_returned = entries.reduce((s, e) => s + e.empty_bags_returned, 0);
+  for (const { record, total_dispatched, total_returned } of reports) {
     lines.push(`${record.date},${record.full_bags_received},${total_dispatched},${total_returned},${record.full_bags_received - total_dispatched}`);
   }
   return lines.join('\n');
+}
+
+// ─── Shop Management (Admin) ──────────────────────────────────────────────────
+
+export async function getAllShops(): Promise<Shop[]> {
+  const { data, error } = await supabase
+    .from('shops')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createShop(name: string): Promise<Shop> {
+  let pin = '';
+  for (let attempt = 0; attempt < MAX_PIN_GENERATION_ATTEMPTS; attempt++) {
+    pin = String(Math.floor(1000 + Math.random() * 9000));
+    const { data } = await supabase.from('shops').select('id').eq('pin', pin).maybeSingle();
+    if (!data) break;
+    if (attempt === MAX_PIN_GENERATION_ATTEMPTS - 1) {
+      throw new Error(`Could not generate unique PIN after ${MAX_PIN_GENERATION_ATTEMPTS} attempts`);
+    }
+  }
+  const adminPin = await getAdminPin();
+  if (pin === adminPin) pin = String(parseInt(pin) + 1);
+
+  const { data, error } = await supabase
+    .from('shops')
+    .insert({ name: name.trim(), pin, is_active: true })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function toggleShopActive(id: string, is_active: boolean): Promise<void> {
+  const { error } = await supabase.from('shops').update({ is_active }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteShop(id: string): Promise<void> {
+  const { error } = await supabase.from('shops').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function getAdminPin(): Promise<string> {
+  const { data, error } = await supabase
+    .from('admin_config')
+    .select('value')
+    .eq('key', 'pin')
+    .single();
+  if (error) throw error;
+  return data.value;
+}
+
+export async function setAdminPin(pin: string): Promise<void> {
+  const { error } = await supabase
+    .from('admin_config')
+    .upsert({ key: 'pin', value: pin });
+  if (error) throw error;
+}
+
+export async function getAllShopsTodaySummary(): Promise<ShopTodaySummary[]> {
+  const today = getTodayDate();
+  const shops = await getAllShops();
+  return Promise.all(
+    shops.map(async (shop) => {
+      const record = await getDailyRecord(shop.id, today);
+      if (!record) return { shop, record: null, total_dispatched: 0, total_returned: 0, entries_count: 0 };
+      const entries = await getCollectionEntries(record.id);
+      return {
+        shop,
+        record,
+        total_dispatched: entries.reduce((s, e) => s + e.full_bags_taken, 0),
+        total_returned: entries.reduce((s, e) => s + e.empty_bags_returned, 0),
+        entries_count: entries.length,
+      };
+    })
+  );
 }
