@@ -309,7 +309,7 @@ export async function getAllShopsTodaySummary(): Promise<ShopTodaySummary[]> {
   return Promise.all(
     shops.map(async (shop) => {
       const record = await getDailyRecord(shop.id, today);
-      if (!record) return { shop, record: null, total_dispatched: 0, total_returned: 0, entries_count: 0 };
+      if (!record) return { shop, record: null, total_dispatched: 0, total_returned: 0, entries_count: 0, partial_missing: 0 };
       const entries = await getCollectionEntries(record.id);
       return {
         shop,
@@ -317,6 +317,9 @@ export async function getAllShopsTodaySummary(): Promise<ShopTodaySummary[]> {
         total_dispatched: entries.reduce((s, e) => s + e.full_bags_taken, 0),
         total_returned: entries.reduce((s, e) => s + e.empty_bags_returned, 0),
         entries_count: entries.length,
+        partial_missing: entries
+          .filter(e => e.return_logged_at !== null && e.empty_bags_returned < e.full_bags_taken)
+          .reduce((s, e) => s + (e.full_bags_taken - e.empty_bags_returned), 0),
       };
     })
   );

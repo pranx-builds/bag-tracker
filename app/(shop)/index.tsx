@@ -142,7 +142,7 @@ export default function ShopDashboard() {
               </View>
               <View style={styles.statsGrid}>
                 <StatCard label="Empty Bags" value={summary.total_returned} variant="success" />
-                <StatCard label="Missing" value={summary.missing} variant={summary.missing === 0 ? 'success' : 'error'} />
+                <StatCard label="Missing" value={partialMissing} variant={partialMissing === 0 ? 'success' : 'error'} />
               </View>
             </View>
 

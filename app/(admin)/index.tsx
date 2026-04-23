@@ -91,9 +91,8 @@ export default function AdminDashboard() {
             </Text>
           </View>
         ) : (
-          summaries.map(({ shop, record, total_dispatched, total_returned, entries_count }) => {
-            const missing = total_dispatched - total_returned;
-            const hasMissing = missing > 0 && entries_count > 0;
+          summaries.map(({ shop, record, total_dispatched, total_returned, entries_count, partial_missing }) => {
+            const hasMissing = partial_missing > 0;
             return (
               <View
                 key={shop.id}
@@ -110,7 +109,7 @@ export default function AdminDashboard() {
                   {hasMissing ? (
                     <View style={[styles.badge, { backgroundColor: colors.errorBg, borderColor: colors.error }]}>
                       <TriangleAlert size={11} color={colors.error} />
-                      <Text style={[styles.badgeText, { color: colors.error }]}>{missing} Missing</Text>
+                      <Text style={[styles.badgeText, { color: colors.error }]}>{partial_missing} Missing</Text>
                     </View>
                   ) : entries_count > 0 ? (
                     <View style={[styles.badge, { backgroundColor: colors.successBg, borderColor: colors.success }]}>
@@ -125,7 +124,7 @@ export default function AdminDashboard() {
                     <ShopStat label="Full Bags" value={record.full_bags_received} color={colors.accent} subtext={colors.subtext} />
                     <ShopStat label="Remaining" value={record.full_bags_received - total_dispatched} color={colors.warning} subtext={colors.subtext} />
                     <ShopStat label="Empty Bags" value={total_returned} color={colors.success} subtext={colors.subtext} />
-                    <ShopStat label="Missing" value={missing} color={missing > 0 ? colors.error : colors.success} subtext={colors.subtext} />
+                    <ShopStat label="Missing" value={partial_missing} color={partial_missing > 0 ? colors.error : colors.success} subtext={colors.subtext} />
                   </View>
                 ) : (
                   <Text style={[styles.noRecord, { color: colors.subtext }]}>No activity today</Text>

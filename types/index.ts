@@ -61,4 +61,5 @@ export interface ShopTodaySummary {
   total_dispatched: number;
   total_returned: number;
   entries_count: number;
+  partial_missing: number;
 }
