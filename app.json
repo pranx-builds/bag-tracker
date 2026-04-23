@@ -8,6 +8,12 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f12eb15c-65a4-4b56-8b98-0ccb0192bd33"
+    },
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "cover",
@@ -53,7 +59,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1c6fffc8-7048-42be-9d9f-9ff067f471dc"
+        "projectId": "f12eb15c-65a4-4b56-8b98-0ccb0192bd33"
       }
     }
   }
