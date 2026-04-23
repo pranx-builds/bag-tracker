@@ -108,14 +108,23 @@ export default function ShopDashboard() {
                 </View>
               );
             })()}
-            {hasMissing && (
-              <View style={[styles.banner, { backgroundColor: colors.errorBg, borderColor: colors.error }]}>
-                <TriangleAlert size={15} color={colors.error} />
-                <Text style={[styles.bannerText, { color: colors.error }]}>
-                  {partialMissing} bag{partialMissing !== 1 ? 's' : ''} missing — fewer returned than taken
-                </Text>
-              </View>
-            )}
+            {hasMissing && (() => {
+              const missingNums = summary.entries
+                .map((e, i) => ({ e, i }))
+                .filter(({ e }) => e.return_logged_at !== null && e.empty_bags_returned < e.full_bags_taken)
+                .map(({ i }) => `#${i + 1}`);
+              const label = missingNums.length > 3
+                ? `${missingNums.slice(0, 3).join(', ')} +${missingNums.length - 3} more`
+                : missingNums.join(', ');
+              return (
+                <View style={[styles.banner, { backgroundColor: colors.errorBg, borderColor: colors.error }]}>
+                  <TriangleAlert size={15} color={colors.error} />
+                  <Text style={[styles.bannerText, { color: colors.error }]}>
+                    Collection {label} missing bags
+                  </Text>
+                </View>
+              );
+            })()}
             {allGood && (
               <View style={[styles.banner, { backgroundColor: colors.successBg, borderColor: colors.success }]}>
                 <CheckCircle size={15} color={colors.success} />
