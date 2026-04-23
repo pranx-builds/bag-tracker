@@ -59,9 +59,16 @@ export default function ShopDashboard() {
     }
   }
 
-  const hasMissing = summary?.has_missing ?? false;
+  // "Missing" only applies when a return is logged but fewer bags came back than were taken.
+  // Pending/overdue (no return logged yet) are handled by their own banners.
+  const partialMissing = summary
+    ? summary.entries
+        .filter(e => e.return_logged_at !== null && e.empty_bags_returned < e.full_bags_taken)
+        .reduce((s, e) => s + (e.full_bags_taken - e.empty_bags_returned), 0)
+    : 0;
+  const hasMissing = partialMissing > 0;
   const allGood = summary
-    ? !summary.has_missing && overdueCount === 0 && pendingCount === 0 && summary.entries.length > 0
+    ? !hasMissing && overdueCount === 0 && pendingCount === 0 && summary.entries.length > 0
     : false;
 
   if (loading) return <LoadingScreen />;
@@ -107,7 +114,7 @@ export default function ShopDashboard() {
               <View style={[styles.banner, { backgroundColor: colors.errorBg, borderColor: colors.error }]}>
                 <TriangleAlert size={15} color={colors.error} />
                 <Text style={[styles.bannerText, { color: colors.error }]}>
-                  {summary.missing} bag{summary.missing !== 1 ? 's' : ''} missing — not returned empty yet
+                  {partialMissing} bag{partialMissing !== 1 ? 's' : ''} missing — fewer returned than taken
                 </Text>
               </View>
             )}
