@@ -94,22 +94,20 @@ export default function ShopDashboard() {
 
         {summary && (
           <>
-            {overdueCount > 0 && (
-              <View style={[styles.banner, { backgroundColor: colors.errorBg, borderColor: colors.error }]}>
-                <TriangleAlert size={15} color={colors.error} />
-                <Text style={[styles.bannerText, { color: colors.error }]}>
-                  {overdueCount} return{overdueCount > 1 ? 's' : ''} overdue
-                </Text>
-              </View>
-            )}
-            {pendingCount > 0 && overdueCount === 0 && (
-              <View style={[styles.banner, { backgroundColor: colors.warningBg, borderColor: colors.warning }]}>
-                <Bell size={15} color={colors.warning} />
-                <Text style={[styles.bannerText, { color: colors.warning }]}>
-                  {pendingCount} collection{pendingCount > 1 ? 's' : ''} awaiting return
-                </Text>
-              </View>
-            )}
+            {(pendingCount > 0 || overdueCount > 0) && (() => {
+              const awaitingEntries = summary.entries
+                .map((e, i) => ({ e, i }))
+                .filter(({ e }) => e.return_logged_at === null);
+              const nums = awaitingEntries.map(({ i }) => `#${i + 1}`).join(', ');
+              return (
+                <View style={[styles.banner, { backgroundColor: colors.warningBg, borderColor: colors.warning }]}>
+                  <Bell size={15} color={colors.warning} />
+                  <Text style={[styles.bannerText, { color: colors.warning }]}>
+                    Collection {nums} awaiting return
+                  </Text>
+                </View>
+              );
+            })()}
             {hasMissing && (
               <View style={[styles.banner, { backgroundColor: colors.errorBg, borderColor: colors.error }]}>
                 <TriangleAlert size={15} color={colors.error} />
