@@ -48,8 +48,9 @@ function CollectionItem({ entry, index, onEdit, onDelete, onReturnLogged }: Coll
   const needsReturn = !hasReturn;
   const showReminder = needsReturn && isPending;
   const showOverdue = needsReturn && isOverdue;
+  const isMissing = hasReturn && entry.empty_bags_returned < entry.full_bags_taken;
 
-  const borderColor = showOverdue ? colors.error : showReminder ? colors.warning : hasReturn ? colors.success : colors.border;
+  const borderColor = showOverdue ? colors.error : isMissing ? colors.error : showReminder ? colors.warning : hasReturn ? colors.success : colors.border;
 
   function handleDelete() {
     Alert.alert('Delete Entry', 'Are you sure you want to delete this collection entry?', [
