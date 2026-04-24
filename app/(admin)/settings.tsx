@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Settings, Lock, LogOut, ShieldCheck, Eye, EyeOff, Clock, Bell } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
@@ -13,6 +14,7 @@ import { getSetting, setSetting } from '@/lib/settings';
 
 export default function AdminSettingsScreen() {
   const { colors } = useTheme();
+  const tabBarHeight = useBottomTabBarHeight();
   const { logout } = useAuth();
 
   const [adminPin, setAdminPinState] = useState('');
@@ -82,7 +84,7 @@ export default function AdminSettingsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           <View style={styles.headerRow}>
             <Settings size={22} color={colors.primary} />

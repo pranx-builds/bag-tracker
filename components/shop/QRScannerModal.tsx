@@ -4,6 +4,7 @@ import {
   StyleSheet, Vibration, Linking, Animated, Dimensions,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QrCode, X, Check } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 
@@ -18,6 +19,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function QRScannerModal({ visible, onClose, onScanned }: Props) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [manualId, setManualId] = useState('');
   const [scannedId, setScannedId] = useState<string | null>(null);
@@ -153,7 +155,7 @@ export default function QRScannerModal({ visible, onClose, onScanned }: Props) {
         </TouchableOpacity>
 
         {/* Bottom card */}
-        <View style={[styles.bottomCard, { backgroundColor: colors.card }]}>
+        <View style={[styles.bottomCard, { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Scan Driver QR Code</Text>
           <Text style={[styles.cardDesc, { color: colors.subtext }]}>
             Point camera at the QR code on the driver's badge
