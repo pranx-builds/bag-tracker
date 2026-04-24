@@ -6,6 +6,7 @@ import {
 import BottomSheet from '@/components/ui/BottomSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Store, Plus, Eye, EyeOff, Power, Trash2, Hash } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { getAllShops, createShop, toggleShopActive, deleteShop } from '@/lib/database';
@@ -13,6 +14,7 @@ import type { Shop } from '@/types';
 
 export default function ShopsScreen() {
   const { colors } = useTheme();
+  const tabBarHeight = useBottomTabBarHeight();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [visiblePins, setVisiblePins] = useState<Record<string, boolean>>({});
@@ -104,7 +106,7 @@ export default function ShopsScreen() {
       {loading ? (
         <View style={styles.loader}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]} showsVerticalScrollIndicator={false}>
           <View style={styles.headerRow}>
             <View style={styles.titleRow}>
               <Store size={22} color={colors.primary} />

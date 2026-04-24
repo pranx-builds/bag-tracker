@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
   ShieldCheck, Package, Store, TriangleAlert,
   CircleCheck as CheckCircle, Calendar,
@@ -17,6 +18,7 @@ import type { ShopTodaySummary } from '@/types';
 
 export default function AdminDashboard() {
   const { colors } = useTheme();
+  const tabBarHeight = useBottomTabBarHeight();
   const [summaries, setSummaries] = useState<ShopTodaySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const today = getTodayDate();
@@ -48,7 +50,7 @@ export default function AdminDashboard() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]} showsVerticalScrollIndicator={false}>
 
         <View style={styles.headerRow}>
           <View>
