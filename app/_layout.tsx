@@ -50,7 +50,6 @@ function RootLayoutNav() {
         <Stack.Screen name="login" />
         <Stack.Screen name="(admin)" />
         <Stack.Screen name="(shop)" />
-        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
