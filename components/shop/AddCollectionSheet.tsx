@@ -28,6 +28,8 @@ export default function AddCollectionSheet({ visible, onClose, shopId, recordId,
   const [time, setTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const takenVal = parseInt(taken, 10);
+  const exceedsRemaining = !isNaN(takenVal) && takenVal > remaining;
 
   function formatTime(d: Date): string {
     const use24 = getSetting('use24HourTime');
@@ -38,6 +40,10 @@ export default function AddCollectionSheet({ visible, onClose, shopId, recordId,
     const val = parseInt(taken, 10);
     if (isNaN(val) || val <= 0) {
       Alert.alert('Invalid Input', 'Please enter how many full bags were taken.');
+      return;
+    }
+    if (val > remaining) {
+      Alert.alert('Exceeds Remaining', `Only ${remaining} bag${remaining !== 1 ? 's' : ''} remaining. You cannot collect more than what's available.`);
       return;
     }
     setSaving(true);
@@ -83,7 +89,7 @@ export default function AddCollectionSheet({ visible, onClose, shopId, recordId,
 
       <Text style={[styles.label, { color: colors.subtext }]}>Full Bags Collected</Text>
       <TextInput
-        style={[styles.bigInput, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
+        style={[styles.bigInput, { backgroundColor: colors.inputBg, borderColor: exceedsRemaining ? colors.error : colors.border, color: exceedsRemaining ? colors.error : colors.text }]}
         keyboardType="numeric"
         value={taken}
         onChangeText={setTaken}
@@ -93,6 +99,11 @@ export default function AddCollectionSheet({ visible, onClose, shopId, recordId,
         maxLength={5}
         selectTextOnFocus
       />
+      {exceedsRemaining && (
+        <Text style={[styles.errorHint, { color: colors.error }]}>
+          Cannot exceed {remaining} remaining bag{remaining !== 1 ? 's' : ''}
+        </Text>
+      )}
 
       <View style={styles.fieldRow}>
         <Clock size={14} color={colors.subtext} />
@@ -138,9 +149,9 @@ export default function AddCollectionSheet({ visible, onClose, shopId, recordId,
           <Text style={[styles.btnText, { color: colors.text }]}>Cancel</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.primary }, saving && styles.disabled]}
+          style={[styles.btn, { backgroundColor: colors.primary }, (saving || exceedsRemaining) && styles.disabled]}
           onPress={handleSave}
-          disabled={saving}
+          disabled={saving || exceedsRemaining}
         >
           {saving
             ? <ActivityIndicator size="small" color="#FFF" />
@@ -168,6 +179,7 @@ const styles = StyleSheet.create({
   btn: { flex: 1, borderRadius: 10, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   btnText: { fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.5 },
+  errorHint: { fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: -4 },
   driverRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5 },
   driverText: { fontSize: 14, fontWeight: '700', flex: 1 },
 });
