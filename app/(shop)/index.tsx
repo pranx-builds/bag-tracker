@@ -17,6 +17,7 @@ import LoadingScreen from '@/components/ui/LoadingScreen';
 import EmptyState from '@/components/ui/EmptyState';
 import StartDaySheet from '@/components/shop/StartDaySheet';
 import AddCollectionSheet from '@/components/shop/AddCollectionSheet';
+import QRScannerModal from '@/components/shop/QRScannerModal';
 import EditReceivedSheet from '@/components/shop/EditReceivedSheet';
 import EditEntrySheet from '@/components/shop/EditEntrySheet';
 import { deleteCollectionEntry } from '@/lib/database';
@@ -34,6 +35,8 @@ export default function ShopDashboard() {
 
   const [startDayVisible, setStartDayVisible] = useState(false);
   const [addEntryVisible, setAddEntryVisible] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [scannedDriverId, setScannedDriverId] = useState('');
   const [editReceivedVisible, setEditReceivedVisible] = useState(false);
   const [editEntryVisible, setEditEntryVisible] = useState(false);
   const [editingEntry, setEditingEntry] = useState<CollectionEntry | null>(null);
@@ -59,8 +62,6 @@ export default function ShopDashboard() {
     }
   }
 
-  // "Missing" only applies when a return is logged but fewer bags came back than were taken.
-  // Pending/overdue (no return logged yet) are handled by their own banners.
   const partialMissing = summary
     ? summary.entries
         .filter(e => e.return_logged_at !== null && e.empty_bags_returned < e.full_bags_taken)
@@ -159,7 +160,7 @@ export default function ShopDashboard() {
               </Text>
               <TouchableOpacity
                 style={[styles.addBtn, { backgroundColor: colors.primary }]}
-                onPress={() => setAddEntryVisible(true)}
+                onPress={() => setScannerVisible(true)}
               >
                 <PackagePlus size={15} color="#FFF" />
                 <Text style={styles.addBtnText}>Add</Text>
@@ -220,14 +221,30 @@ export default function ShopDashboard() {
         today={today}
         onSuccess={loadData}
       />
+      <QRScannerModal
+        visible={scannerVisible}
+        onClose={() => {
+          setScannerVisible(false);
+          setAddEntryVisible(true);
+        }}
+        onScanned={(driverId) => {
+          setScannedDriverId(driverId);
+          setScannerVisible(false);
+          setAddEntryVisible(true);
+        }}
+      />
       <AddCollectionSheet
         visible={addEntryVisible}
-        onClose={() => setAddEntryVisible(false)}
+        onClose={() => {
+          setAddEntryVisible(false);
+          setScannedDriverId('');
+        }}
         shopId={shopId}
         recordId={summary?.record.id ?? ''}
         remaining={summary?.remaining ?? 0}
         today={today}
         onSuccess={loadData}
+        driverId={scannedDriverId}
       />
       <EditReceivedSheet
         visible={editReceivedVisible}

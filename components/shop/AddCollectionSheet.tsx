@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, Alert,
   ActivityIndicator, StyleSheet, Platform,
 } from 'react-native';
-import { Truck, Clock, FileText } from 'lucide-react-native';
+import { Truck, Clock, FileText, QrCode } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '@/lib/theme';
 import BottomSheet from '@/components/ui/BottomSheet';
@@ -18,9 +18,10 @@ interface Props {
   remaining: number;
   today: string;
   onSuccess: () => void;
+  driverId?: string;
 }
 
-export default function AddCollectionSheet({ visible, onClose, shopId, recordId, remaining, today, onSuccess }: Props) {
+export default function AddCollectionSheet({ visible, onClose, shopId, recordId, remaining, today, onSuccess, driverId }: Props) {
   const { colors } = useTheme();
   const [taken, setTaken] = useState('');
   const [notes, setNotes] = useState(() => getSetting('defaultNotes'));
@@ -43,7 +44,10 @@ export default function AddCollectionSheet({ visible, onClose, shopId, recordId,
     try {
       const ts = new Date(today + 'T00:00:00');
       ts.setHours(time.getHours(), time.getMinutes(), 0, 0);
-      await addCollectionEntry(shopId, recordId, val, notes.trim(), ts.toISOString());
+      const finalNotes = driverId
+        ? driverId + (notes.trim() ? '\n' + notes.trim() : '')
+        : notes.trim();
+      await addCollectionEntry(shopId, recordId, val, finalNotes, ts.toISOString());
       setTaken('');
       setNotes(getSetting('defaultNotes'));
       setTime(new Date());
@@ -69,6 +73,13 @@ export default function AddCollectionSheet({ visible, onClose, shopId, recordId,
           </Text>
         </View>
       </View>
+
+      {driverId ? (
+        <View style={[styles.driverRow, { backgroundColor: colors.successBg, borderColor: colors.success }]}>
+          <QrCode size={16} color={colors.success} />
+          <Text style={[styles.driverText, { color: colors.success }]}>Driver ID: {driverId}</Text>
+        </View>
+      ) : null}
 
       <Text style={[styles.label, { color: colors.subtext }]}>Full Bags Collected</Text>
       <TextInput
@@ -157,4 +168,6 @@ const styles = StyleSheet.create({
   btn: { flex: 1, borderRadius: 10, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   btnText: { fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.5 },
+  driverRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5 },
+  driverText: { fontSize: 14, fontWeight: '700', flex: 1 },
 });
