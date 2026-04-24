@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useFocusEffect } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChartBar as BarChart3, Calendar, CalendarDays, CalendarRange,
@@ -23,6 +24,7 @@ type ReportTab = 'daily' | 'weekly' | 'monthly';
 
 export default function AdminReportsScreen() {
   const { colors } = useTheme();
+  const tabBarHeight = useBottomTabBarHeight();
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [loadingShops, setLoadingShops] = useState(true);
@@ -104,7 +106,7 @@ export default function AdminReportsScreen() {
   if (!selectedShop) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]} showsVerticalScrollIndicator={false}>
           <View style={styles.headerRow}>
             <BarChart3 size={22} color={colors.primary} />
             <Text style={[styles.title, { color: colors.text }]}>Reports</Text>
