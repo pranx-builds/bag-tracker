@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Alert,
   ActivityIndicator, StyleSheet, Platform,
@@ -28,6 +28,16 @@ export default function AddCollectionSheet({ visible, onClose, shopId, recordId,
   const [time, setTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setTime(new Date());
+      setTaken('');
+      setNotes(getSetting('defaultNotes'));
+      setShowTimePicker(false);
+    }
+  }, [visible]);
+
   const takenVal = parseInt(taken, 10);
   const exceedsRemaining = !isNaN(takenVal) && takenVal > remaining;
 
