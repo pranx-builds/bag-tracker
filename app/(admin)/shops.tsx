@@ -7,7 +7,6 @@ import BottomSheet from '@/components/ui/BottomSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Store, Plus, Eye, EyeOff, Power, Trash2, Hash } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { getAllShops, createShop, toggleShopActive, deleteShop } from '@/lib/database';
@@ -102,7 +101,7 @@ export default function ShopsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
 
       {loading ? (
         <View style={styles.loader}><ActivityIndicator size="large" color={colors.primary} /></View>

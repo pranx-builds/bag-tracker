@@ -105,7 +105,7 @@ export default function AdminReportsScreen() {
   // ── Shop picker ───────────────────────────────────────────────────────────
   if (!selectedShop) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]} showsVerticalScrollIndicator={false}>
           <View style={styles.headerRow}>
             <BarChart3 size={22} color={colors.primary} />
@@ -147,7 +147,7 @@ export default function AdminReportsScreen() {
   ];
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* Header with back + export */}
