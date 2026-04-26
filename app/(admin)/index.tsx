@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
+  View, Text, ScrollView, StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
-  ShieldCheck, Package, Store, TriangleAlert,
+  ShieldCheck, Store, TriangleAlert,
   CircleCheck as CheckCircle, Calendar,
 } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
@@ -50,8 +50,9 @@ export default function AdminDashboard() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]} showsVerticalScrollIndicator={false}>
 
+      {/* ── Fixed: header + stats ── */}
+      <View style={[styles.fixedTop, { backgroundColor: colors.background }]}>
         <View style={styles.headerRow}>
           <View>
             <View style={styles.titleRow}>
@@ -84,7 +85,13 @@ export default function AdminDashboard() {
         <Text style={[styles.sectionLabel, { color: colors.text }]}>
           Shops Today ({summaries.length})
         </Text>
+      </View>
 
+      {/* ── Scrollable shops list only ── */}
+      <ScrollView
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + 16 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {summaries.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Store size={36} color={colors.subtext} />
@@ -151,7 +158,8 @@ function ShopStat({ label, value, color, subtext }: { label: string; value: numb
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 16, gap: 14, paddingBottom: 40 },
+
+  fixedTop: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 14 },
 
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -165,7 +173,9 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 15, fontWeight: '700' },
   statsGrid: { flexDirection: 'row', gap: 10 },
 
-  sectionLabel: { fontSize: 15, fontWeight: '700', marginTop: 2 },
+  sectionLabel: { fontSize: 15, fontWeight: '700' },
+
+  listContent: { paddingHorizontal: 16, paddingTop: 8, gap: 12 },
 
   shopCard: { borderRadius: 14, borderWidth: 1.5, padding: 14, gap: 10 },
   shopCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
