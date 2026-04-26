@@ -1,11 +1,13 @@
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayoutDashboard, Store, ChartBar as BarChart3, Settings } from 'lucide-react-native';
 import { Colors } from '@/lib/theme';
 
 export default function AdminLayout() {
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -15,8 +17,9 @@ export default function AdminLayout() {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.tabBarBorder,
           borderTopWidth: 1,
-          paddingBottom: 8,
           paddingTop: 6,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          height: 56 + (insets.bottom > 0 ? insets.bottom : 8),
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.subtext,
