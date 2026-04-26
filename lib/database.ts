@@ -109,12 +109,16 @@ export async function updateCollectionEntry(
   id: string,
   fullBagsTaken: number,
   emptyBagsReturned: number,
-  notes: string = ''
+  notes: string = '',
+  timestamp?: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('collection_entries')
-    .update({ full_bags_taken: fullBagsTaken, empty_bags_returned: emptyBagsReturned, notes: notes.trim() })
-    .eq('id', id);
+  const payload: Record<string, unknown> = {
+    full_bags_taken: fullBagsTaken,
+    empty_bags_returned: emptyBagsReturned,
+    notes: notes.trim(),
+  };
+  if (timestamp) payload.timestamp = timestamp;
+  const { error } = await supabase.from('collection_entries').update(payload).eq('id', id);
   if (error) throw error;
 }
 
